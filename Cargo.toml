@@ -1,0 +1,11 @@
+[package]
+name = "inplace_it"
+version = "0.1.0"
+authors = ["Dmitry Demin <shepardiwe@gmail.com>"]
+edition = "2018"
+license-file = "LICENSE.txt"
+description = "Place small arrays on the stack with a low-cost!"
+repository = "https://github.com/NotIntMan/inplace_it"
+readme = "README.md"
+
+[dependencies]
