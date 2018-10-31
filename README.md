@@ -32,8 +32,6 @@ allocating in the heap.
 
 ## Moar!
 
-You can read the [API reference] for more details
-or create an [new issue] to submit a bug, feature request or just ask a question.
-
-[API reference]: (https://docs.rs/inplace_it)
-[new issue]: (https://github.com/NotIntMan/inplace_it/issues/new)
+You can read the [API reference](https://docs.rs/inplace_it) for more details
+or create an [new issue](https://github.com/NotIntMan/inplace_it/issues/new)
+to submit a bug, feature request or just ask a question.
