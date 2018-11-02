@@ -350,6 +350,23 @@ pub unsafe fn inplace_array_uninitialized<
     }
 }
 
+#[inline]
+pub fn inplace_array<
+    T,
+    R,
+    Init: Fn(usize) -> T,
+    Consumer: Fn(&mut [T]) -> R,
+>(size: usize, limit: usize, init: Init, consumer: Consumer) -> R {
+    unsafe {
+        inplace_array_uninitialized(size, limit, |memory: &mut [T]| {
+            for (index, item) in memory.into_iter().enumerate() {
+                *item = init(index);
+            }
+            consumer(memory)
+        })
+    }
+}
+
 macro_rules! impl_fixed_array_for_array {
     ($($x: expr),+) => {
         $(
