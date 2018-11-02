@@ -12,6 +12,7 @@ The simplest way to use it is:
 
 ```rust
 use inplace_it::inplace_array;
+
 inplace_array(
     150, // size of needed array to allocate
     4096, // limit in bytes allowed to allocate on the stack

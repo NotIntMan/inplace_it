@@ -12,6 +12,7 @@
 //!
 //! ```rust
 //! use inplace_it::inplace_array;
+//!
 //! inplace_array(
 //!     150, // size of needed array to allocate
 //!     4096, // limit in bytes allowed to allocate on the stack
@@ -99,8 +100,11 @@ pub unsafe fn alloc_array<T, R, Consumer: Fn(&mut [T]) -> R>(size: usize, consum
     consumer(&mut *memory)
 }
 
-/// `inplace_array` trying to place an array of `T` on the stack, then initialize it using the
-/// `init` closure and finally pass the reference to it into the `consumer` closure.
+/// `inplace_array_uninitialized` is unsafe API which is being used by `inplace_array` and
+/// `inplace_copy_of` internally.
+///  It's trying to place an array of `T` on the stack and pass the reference to it into the
+/// `consumer` closure.
+/// `size` argument sets the requested size of an array.
 /// `consumer`'s result will be returned.
 ///
 /// If the result of array of `T` is more than `limit` (or it's size is more than 4096)
@@ -116,53 +120,63 @@ pub unsafe fn alloc_array<T, R, Consumer: Fn(&mut [T]) -> R>(size: usize, consum
 /// Note that rounding size up is working for fixed-sized arrays only. If function decides to
 /// allocate a vector then its size will be equal to requested.
 ///
+/// # Safety
+///
+/// It uses `core::mem::uninitialized` under the hood so placed memory is not initialized
+/// and it is not safe to use this directly. You it with care, please.
+///
+/// Also this function is **FAST** because it haven't initializing overhead. Really.
+///
 /// # Examples
 ///
 /// ```rust
-/// use inplace_it::inplace_array;
+/// use inplace_it::inplace_array_uninitialized;
 ///
 /// // For sizes <= 32 will be allocated exactly same size array
 ///
 /// for i in 1..32 {
-///     inplace_array(
-///         i, //size of array
-///         1024, // limit of allowed stack allocation in bytes
-///         |index| index, // initializer which will be called for every array item,
-///         |memory: &mut [usize]| { // consumer which will use our allocated array
-///             assert_eq!(memory.len(), i);
-///         }
-///     );
+///     unsafe {
+///         inplace_array_uninitialized(
+///             i, //size of array
+///             1024, // limit of allowed stack allocation in bytes
+///             |memory: &mut [usize]| { // consumer which will use our allocated array
+///                 assert_eq!(memory.len(), i);
+///             }
+///         );
+///     }
 /// }
 ///
 /// // For sizes > 32 an array may contains a little more items
 ///
 /// for i in (50..500).step_by(50) {
-///     inplace_array(
-///         i, //size of array
-///         2048, // limit of allowed stack allocation in bytes
-///         |index| index as u16, // initializer which will be called for every array item,
-///         |memory: &mut [u16]| { // consumer which will use our allocated array
-///             let mut j = i / 32;
-///             if (i % 32) != 0 {
-///                 j += 1;
+///     unsafe {
+///         inplace_array_uninitialized(
+///             i, //size of array
+///             2048, // limit of allowed stack allocation in bytes
+///             |memory: &mut [u16]| { // consumer which will use our allocated array
+///                 let mut j = i / 32;
+///                 if (i % 32) != 0 {
+///                     j += 1;
+///                 }
+///                 j *= 32;
+///                 assert_eq!(memory.len(), j);
 ///             }
-///             j *= 32;
-///             assert_eq!(memory.len(), j);
-///         }
-///     );
+///         );
+///     }
 /// }
 ///
 /// // But if size of fixed-size array more than limit then vector of exact size will be allocated
 ///
 /// for i in (50..500).step_by(50) {
-///     inplace_array(
-///         i, //size of array
-///         0, // limit of allowed stack allocation in bytes
-///         |index| index, // initializer which will be called for every array item,
-///         |memory: &mut [usize]| { // consumer which will use our allocated array
-///             assert_eq!(memory.len(), i);
-///         }
-///     );
+///     unsafe {
+///         inplace_array_uninitialized(
+///             i, //size of array
+///             0, // limit of allowed stack allocation in bytes
+///             |memory: &mut [usize]| { // consumer which will use our allocated array
+///                 assert_eq!(memory.len(), i);
+///             }
+///         );
+///     }
 /// }
 /// ```
 #[inline]
@@ -350,6 +364,34 @@ pub unsafe fn inplace_array_uninitialized<
     }
 }
 
+/// `inplace_array` trying to place an array of `T` on the stack, then initialize it using the
+/// `init` closure and finally pass the reference to it into the `consumer` closure.
+/// `size` argument sets the requested size of an array.
+/// `consumer`'s result will be returned.
+///
+/// If the result of array of `T` is more than `limit` (or it's size is more than 4096)
+/// then the vector will be allocated in the heap and will be initialized and passed as a
+/// reference instead of stack-based fixed-size array.
+///
+/// It's shrink placed/allocated memory by `inplace_array_uninitialized` to requested size
+/// so you don't need to worry about extra memory, just use it.
+///
+/// # Examples
+///
+/// ```rust
+/// use inplace_it::inplace_array;
+///
+/// for i in (0..500).step_by(25) {
+///     inplace_array(
+///         i, //size of array
+///         1024, // limit of allowed stack allocation in bytes
+///         |index| index, // initializer which will be called for every array item,
+///         |memory: &mut [usize]| { // consumer which will use our allocated array
+///             assert_eq!(memory.len(), i);
+///         }
+///     );
+/// }
+/// ```
 #[inline]
 pub fn inplace_array<
     T,
@@ -359,6 +401,7 @@ pub fn inplace_array<
 >(size: usize, limit: usize, init: Init, consumer: Consumer) -> R {
     unsafe {
         inplace_array_uninitialized(size, limit, |memory: &mut [T]| {
+            let memory = &mut memory[..size];
             for (index, item) in memory.into_iter().enumerate() {
                 *item = init(index);
             }
