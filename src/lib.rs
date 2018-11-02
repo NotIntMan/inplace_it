@@ -410,6 +410,53 @@ pub fn inplace_array<
     }
 }
 
+/// `inplace_copy_of` trying to place an array of `T` on the stack, then initialize it by
+/// copying from the `source` slice and finally pass the reference to it into the `consumer` closure.
+/// Length of `source` argument sets the requested size of an array.
+/// `consumer`'s result will be returned.
+///
+/// If the result of array of `T` is more than `limit` (or it's size is more than 4096)
+/// then the vector will be allocated in the heap and will be initialized and passed as a
+/// reference instead of stack-based fixed-size array.
+///
+/// It's shrink placed/allocated memory by `inplace_array_uninitialized` to requested size
+/// so you don't need to worry about extra memory, just use it.
+///
+/// # Examples
+///
+/// ```rust
+/// use inplace_it::{ inplace_array, inplace_copy_of };
+///
+/// for i in (0..500).step_by(25) {
+///     // we use `inplace_array` for generating inputs
+///     inplace_array(i, 1024, |index| index, |memory: &mut [usize]| {
+///         assert_eq!(memory.len(), i);
+///         inplace_copy_of(
+///             memory, // source which will be used for setting size and initializing an array
+///             1024, // limit of allowed stack allocation in bytes,
+///             |memory_copy: &mut [usize]| {
+///                 assert_eq!(memory, memory_copy);
+///             },
+///         );
+///     });
+/// }
+/// ```
+#[inline]
+pub fn inplace_copy_of<
+    T: Clone,
+    R,
+    Consumer: Fn(&mut [T]) -> R,
+>(source: &[T], limit: usize, consumer: Consumer) -> R {
+    let source_length = source.len();
+    unsafe {
+        inplace_array_uninitialized(source_length, limit, |memory: &mut [T]| {
+            let memory = &mut memory[..source_length];
+            memory.clone_from_slice(source);
+            consumer(memory)
+        })
+    }
+}
+
 macro_rules! impl_fixed_array_for_array {
     ($($x: expr),+) => {
         $(
