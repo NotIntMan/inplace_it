@@ -68,7 +68,7 @@
 /// on the stack so we use `core::mem::uninitialized` which is unsafe
 /// so `inplace` is unsafe too.
 #[inline]
-pub unsafe fn inplace<T, R>(consumer: impl Fn(&mut T) -> R) -> R {
+pub unsafe fn inplace<T, R, Consumer: Fn(&mut T) -> R>(consumer: Consumer) -> R {
     let mut memory = ::core::mem::uninitialized::<T>();
     consumer(&mut memory)
 }
@@ -93,36 +93,10 @@ pub trait FixedArray {
 /// and then pass a reference to a slice of the vector into the `consumer` closure.
 /// `consumer`'s result will be returned.
 #[inline]
-pub fn alloc_array<T, R>(size: usize, init: impl Fn(usize) -> T, consumer: impl Fn(&mut [T]) -> R) -> R {
+pub unsafe fn alloc_array<T, R, Consumer: Fn(&mut [T]) -> R>(size: usize, consumer: Consumer) -> R {
     let mut memory = Vec::with_capacity(size);
-    for i in 0..size {
-        memory.push(init(i));
-    }
+    memory.set_len(size);
     consumer(&mut *memory)
-}
-
-/// `inplace_fixed_size_array` is used when `inplace_array` realize that the size of requested array of `T`
-/// is small enough and should be replaced on the stack.
-///
-/// It use `inplace` function to place the array on the stack and fills it up with help of `init` closure
-/// and then pass a reference to a slice of the vector into the `consumer` closure.
-/// `consumer`'s result will be returned.
-#[inline]
-pub fn inplace_fixed_size_array<
-    T: FixedArray,
-    Result,
-    Init: Fn(usize) -> T::Item,
-    Consumer: Fn(&mut [T::Item]) -> Result,
->(init: Init, consumer: Consumer) -> Result {
-    unsafe {
-        inplace(|memory: &mut T| {
-            let items = memory.as_slice_mut();
-            for i in 0..items.len() {
-                items[i] = init(i);
-            }
-            consumer(items)
-        })
-    }
 }
 
 /// `inplace_array` trying to place an array of `T` on the stack, then initialize it using the
@@ -192,15 +166,14 @@ pub fn inplace_fixed_size_array<
 /// }
 /// ```
 #[inline]
-pub fn inplace_array<
+pub unsafe fn inplace_array_uninitialized<
     T,
-    Result,
-    Init: Fn(usize) -> T,
-    Consumer: Fn(&mut [T]) -> Result,
->(size: usize, limit: usize, init: Init, consumer: Consumer) -> Result {
+    R,
+    Consumer: Fn(&mut [T]) -> R,
+>(size: usize, limit: usize, consumer: Consumer) -> R {
     macro_rules! inplace {
         ($size: expr) => {
-            inplace_fixed_size_array::<[T; $size], Result, Init, Consumer>(init, consumer)
+            inplace(|memory: &mut [T; $size]| consumer(&mut *memory))
         };
     }
     macro_rules! safe_inplace {
@@ -208,7 +181,7 @@ pub fn inplace_array<
             if ::core::mem::size_of::<[T; $size]>() <= limit {
                 inplace!($size)
             } else {
-                alloc_array(size, init, consumer)
+                alloc_array::<T, R, Consumer>(size, consumer)
             }
         };
     }
@@ -373,7 +346,7 @@ pub fn inplace_array<
         4001..=4032 => safe_inplace!(4032),
         4033..=4064 => safe_inplace!(4064),
         4065..=4096 => safe_inplace!(4096),
-        n => alloc_array(n, init, consumer)
+        n => alloc_array(n, consumer),
     }
 }
 
