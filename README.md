@@ -1,5 +1,8 @@
 # Inplace it!
 
+![Version badge](https://img.shields.io/crates/v/inplace_it.svg)
+![License badge](https://img.shields.io/crates/l/inplace_it.svg)
+
 Place small arrays on the stack with a low cost!
 
 The only price you should pay for this is the price of choosing
