@@ -19,9 +19,7 @@ inplace_array(
           // if the limit is exceeded then Vec<T> will be used
     |index| index * 2, // initializer will be called for every item in the array
     |memory: &mut [usize]| { // and this is consumer of initialized memory
-        assert!(memory.len() >= 150);
-        // sometimes more memory may be placed on the stack than needed
-        // but if Vec<T> is used that will never happen
+        assert_eq!(memory.len(), 150);
     }
 )
 ```

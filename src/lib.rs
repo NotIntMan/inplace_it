@@ -19,9 +19,7 @@
 //!           // if the limit is exceeded then Vec<T> will be used
 //!     |index| index * 2, // initializer will be called for every item in the array
 //!     |memory: &mut [usize]| { // and this is consumer of initialized memory
-//!         assert!(memory.len() >= 150);
-//!         // sometimes more memory may be placed on the stack than needed
-//!         // but if Vec<T> is used that will never happen
+//!         assert_eq!(memory.len(), 150);
 //!     }
 //! )
 //! ```
@@ -108,7 +106,7 @@ pub unsafe fn alloc_array<T, R, Consumer: Fn(&mut [T]) -> R>(size: usize, consum
 /// `consumer`'s result will be returned.
 ///
 /// If the result of array of `T` is more than `limit` (or it's size is more than 4096)
-/// then the vector will be allocated in the heap and will be initialized and passed as a
+/// then the vector will be allocated in the heap and will be passed as a
 /// reference instead of stack-based fixed-size array.
 ///
 /// Sometimes size of allocated array might be more than requested. For sizes larger than 32,
