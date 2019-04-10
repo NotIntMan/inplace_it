@@ -74,6 +74,8 @@
 //! allocating in the heap.
 //!
 
+use core::mem::{size_of, uninitialized, replace, forget};
+
 /// Places uninitialized memory for the `T` type on the stack
 /// and passes the reference to it into the `consumer` closure.
 ///
@@ -108,10 +110,14 @@
 /// Because of some purposes we don't want to initialize the memory allocated
 /// on the stack so we use `core::mem::uninitialized` which is unsafe
 /// so `inplace` is unsafe too.
+///
+/// Also `inplace` **DO NOT** `drop` inplaced memory.
 #[inline]
-pub unsafe fn inplace<T, R, Consumer: Fn(&mut T) -> R>(consumer: Consumer) -> R {
-    let mut memory = ::core::mem::uninitialized::<T>();
-    consumer(&mut memory)
+pub unsafe fn inplace<T, R, Consumer: FnOnce(&mut T) -> R>(consumer: Consumer) -> R {
+    let mut memory = uninitialized::<T>();
+    let result = consumer(&mut memory);
+    forget(memory);
+    result
 }
 
 /// This trait is a extended copy of unstable
@@ -134,7 +140,7 @@ pub trait FixedArray {
 /// and then pass a reference to a slice of the vector into the `consumer` closure.
 /// `consumer`'s result will be returned.
 #[inline]
-pub unsafe fn alloc_array<T, R, Consumer: Fn(&mut [T]) -> R>(size: usize, consumer: Consumer) -> R {
+pub unsafe fn alloc_array<T, R, Consumer: FnOnce(&mut [T]) -> R>(size: usize, consumer: Consumer) -> R {
     let mut memory = Vec::with_capacity(size);
     memory.set_len(size);
     consumer(&mut *memory)
@@ -165,7 +171,9 @@ pub unsafe fn alloc_array<T, R, Consumer: Fn(&mut [T]) -> R>(size: usize, consum
 /// It uses `core::mem::uninitialized` under the hood so placed memory is not initialized
 /// and it is not safe to use this directly. You it with care, please.
 ///
-/// Also this function is **FAST** because it haven't initializing overhead. Really.
+/// Also `inplace_array_uninitialized` **DO NOT** `drop` inplaced memory.
+///
+/// But this function is **FAST** because it haven't initializing overhead. Really.
 ///
 /// # Examples
 ///
@@ -223,7 +231,7 @@ pub unsafe fn alloc_array<T, R, Consumer: Fn(&mut [T]) -> R>(size: usize, consum
 pub unsafe fn inplace_array_uninitialized<
     T,
     R,
-    Consumer: Fn(&mut [T]) -> R,
+    Consumer: FnOnce(&mut [T]) -> R,
 >(size: usize, limit: usize, consumer: Consumer) -> R {
     macro_rules! inplace {
         ($size: expr) => {
@@ -232,7 +240,7 @@ pub unsafe fn inplace_array_uninitialized<
     }
     macro_rules! safe_inplace {
         ($size: expr) => {
-            if ::core::mem::size_of::<[T; $size]>() <= limit {
+            if size_of::<[T; $size]>() <= limit {
                 inplace!($size)
             } else {
                 alloc_array::<T, R, Consumer>(size, consumer)
@@ -404,6 +412,50 @@ pub unsafe fn inplace_array_uninitialized<
     }
 }
 
+/// MemoryGuard protects slice of memory from panics.
+/// It needs to correctly perform `Drop` on his slice of memory.
+struct MemoryGuard<'a, T> {
+    memory: &'a mut [T],
+}
+
+impl<'a, T> MemoryGuard<'a, T> {
+    #[inline]
+    fn new(memory: &'a mut [T]) -> Self {
+        Self { memory }
+    }
+    #[inline]
+    fn init<Init: Fn(usize) -> T>(&mut self, init: Init) {
+        for (index, item) in self.memory.into_iter().enumerate() {
+            forget(replace(item, init(index)));
+        }
+    }
+    #[inline]
+    fn transfer<Consumer: FnOnce(&mut [T]) -> R, R>(self, consumer: Consumer) -> R {
+        let result = consumer(self.memory);
+        // To be sure we drop it AFTER call of consumer
+        drop(self);
+        result
+    }
+}
+
+impl<'a, T: Clone> MemoryGuard<'a, T> {
+    #[inline]
+    fn clone_from(&mut self, source: &[T]) {
+        self.memory.clone_from_slice(source);
+    }
+}
+
+impl<'a, T> Drop for MemoryGuard<'a, T> {
+    #[inline]
+    fn drop(&mut self) {
+        for item in self.memory.into_iter() {
+            drop(unsafe {
+                replace(item, uninitialized())
+            });
+        }
+    }
+}
+
 /// `inplace_array` trying to place an array of `T` on the stack, then initialize it using the
 /// `init` closure and finally pass the reference to it into the `consumer` closure.
 /// `size` argument sets the requested size of an array.
@@ -437,15 +489,13 @@ pub fn inplace_array<
     T,
     R,
     Init: Fn(usize) -> T,
-    Consumer: Fn(&mut [T]) -> R,
+    Consumer: FnOnce(&mut [T]) -> R,
 >(size: usize, limit: usize, init: Init, consumer: Consumer) -> R {
     unsafe {
         inplace_array_uninitialized(size, limit, |memory: &mut [T]| {
-            let memory = &mut memory[..size];
-            for (index, item) in memory.into_iter().enumerate() {
-                *item = init(index);
-            }
-            consumer(memory)
+            let mut guard = MemoryGuard::new(&mut memory[..size]);
+            guard.init(init);
+            guard.transfer(consumer)
         })
     }
 }
@@ -485,14 +535,14 @@ pub fn inplace_array<
 pub fn inplace_copy_of<
     T: Clone,
     R,
-    Consumer: Fn(&mut [T]) -> R,
+    Consumer: FnOnce(&mut [T]) -> R,
 >(source: &[T], limit: usize, consumer: Consumer) -> R {
     let source_length = source.len();
     unsafe {
         inplace_array_uninitialized(source_length, limit, |memory: &mut [T]| {
-            let memory = &mut memory[..source_length];
-            memory.clone_from_slice(source);
-            consumer(memory)
+            let mut guard = MemoryGuard::new(&mut memory[..source_length]);
+            guard.clone_from(source);
+            guard.transfer(consumer)
         })
     }
 }
@@ -530,3 +580,64 @@ impl_fixed_array_for_array!(
     3136, 3168, 3200, 3232, 3264, 3296, 3328, 3360, 3392, 3424, 3456, 3488, 3520, 3552, 3584, 3616,
     3648, 3680, 3712, 3744, 3776, 3808, 3840, 3872, 3904, 3936, 3968, 4000, 4032, 4064, 4096
 );
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // place u8 to have size
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct DropControl(u8);
+
+    static mut DROP_CONTROL_DROPPED: usize = 0;
+
+    impl Drop for DropControl {
+        #[inline]
+        fn drop(&mut self) {
+            unsafe {
+                DROP_CONTROL_DROPPED += 1;
+            }
+            println!("DropControl dropped");
+        }
+    }
+
+    fn clear_drop_control_dropped_flag() {
+        unsafe {
+            DROP_CONTROL_DROPPED = 0;
+        }
+    }
+
+    fn drop_control_dropped() -> usize {
+        unsafe { DROP_CONTROL_DROPPED }
+    }
+
+    #[test]
+    fn inplace_array_should_correctly_call_drop() {
+        for i in (1..500).step_by(25) {
+            clear_drop_control_dropped_flag();
+            let len = inplace_array(i, i * 2, |_| DropControl(0), |mem| {
+                assert_eq!(0, drop_control_dropped());
+                mem.len()
+            });
+            assert_eq!(i, len);
+            assert_eq!(i, drop_control_dropped());
+        }
+    }
+
+    #[test]
+    fn inplace_copy_of_should_correctly_call_drop() {
+        for i in (1..500).step_by(25) {
+            inplace_array(i, i * 2, |_| DropControl(0), |mem| {
+                let len = inplace_copy_of(mem,i * 2, |mem_copy| {
+                    clear_drop_control_dropped_flag();
+                    assert_eq!(mem, mem_copy);
+                    assert_eq!(0, drop_control_dropped());
+                    mem_copy.len()
+                });
+                assert_eq!(i, len);
+                assert_eq!(i, drop_control_dropped());
+            });
+        }
+    }
+}
