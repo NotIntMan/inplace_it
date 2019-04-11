@@ -74,6 +74,8 @@
 //! allocating in the heap.
 //!
 
+mod guards;
+
 use core::mem::{size_of, uninitialized, replace, forget};
 
 /// Places uninitialized memory for the `T` type on the stack
