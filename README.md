@@ -75,3 +75,11 @@ allocating in the heap.
 You can read the [API reference](https://docs.rs/inplace_it) for more details
 or create an [new issue](https://github.com/NotIntMan/inplace_it/issues/new)
 to submit a bug, feature request or just ask a question.
+
+## Changelog
+
+### 0.2.1
+
+* Fixed drop-correctness for safe functions.
+
+    Now unsafe function do not drop your data but safe function do it correctly.
