@@ -1,6 +1,6 @@
 use core::{
-    mem::{ManuallyDrop, uninitialized, forget, replace},
-    ops::{Bound, RangeBounds},
+    mem::{ManuallyDrop, uninitialized, forget, replace, drop},
+    ops::{Bound, Deref, DerefMut, RangeBounds},
 };
 use crate::FixedArray;
 
@@ -24,36 +24,17 @@ impl<'a, T: ?Sized> UninitializedMemoryGuard<'a, T> {
     }
 
     #[inline]
-    pub unsafe fn init<Init: FnOnce(&mut T)>(self, init: Init) -> MemoryGuard<'a, T> {
-        init(self.memory);
-        MemoryGuard { memory: self.memory }
+    pub fn borrow<'b: 'a>(&'b mut self) -> UninitializedMemoryGuard<'b, T> {
+        UninitializedMemoryGuard { memory: self.memory }
     }
 }
 
 impl<'a, T> UninitializedMemoryGuard<'a, T> {
     #[inline]
-    pub fn init_with(self, value: T) -> MemoryGuard<'a, T> {
-        unsafe {
-            self.init(|mem| {
-                forget(replace(mem, value))
-            })
-        }
+    pub fn init(self, value: T) -> MemoryGuard<'a, T> {
+        forget(replace(self.memory, value));
+        MemoryGuard { memory: self.memory }
     }
-}
-
-#[inline]
-fn slice<T, Range: RangeBounds<usize>>(origin: &mut [T], range: Range) -> &mut [T] {
-    let start = match range.start_bound() {
-        Bound::Excluded(n) => n.saturating_add(1),
-        Bound::Included(n) => *n,
-        Bound::Unbounded => 0,
-    };
-    let end = match range.start_bound() {
-        Bound::Excluded(n) => *n,
-        Bound::Included(n) => n.saturating_add(1),
-        Bound::Unbounded => origin.len(),
-    };
-    &mut origin[start..end]
 }
 
 impl<'a, I> UninitializedMemoryGuard<'a, [I]> {
@@ -64,30 +45,37 @@ impl<'a, I> UninitializedMemoryGuard<'a, [I]> {
 
     #[inline]
     pub fn slice<Range: RangeBounds<usize>>(self, range: Range) -> Self {
+        let start = match range.start_bound() {
+            Bound::Excluded(n) => n.saturating_add(1),
+            Bound::Included(n) => *n,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.start_bound() {
+            Bound::Excluded(n) => *n,
+            Bound::Included(n) => n.saturating_add(1),
+            Bound::Unbounded => self.memory.len(),
+        };
         Self {
-            memory: slice(self.memory, range),
+            memory: &mut self.memory[start..end],
         }
     }
 
     #[inline]
-    pub fn init_array<Init: Fn(usize) -> I>(self, init: Init) -> MemoryGuard<'a, [I]> {
-        unsafe {
-            self.init(|mem| {
-                for (index, item) in mem.into_iter().enumerate() {
-                    forget(replace(item, init(index)))
-                }
-            })
+    pub fn init_slice<Init: Fn(usize) -> I>(self, init: Init) -> SliceMemoryGuard<'a, I> {
+        for (index, item) in self.memory.into_iter().enumerate() {
+            unsafe {
+                forget(replace(item, init(index)))
+            }
         }
+        SliceMemoryGuard { memory: self.memory }
     }
 
     #[inline]
-    pub fn init_copy_of(self, source: &[I]) -> MemoryGuard<'a, [I]>
+    pub fn init_copy_of(self, source: &[I]) -> SliceMemoryGuard<'a, I>
         where I: Clone
     {
         unsafe {
-            self.slice(..source.len()).init(|mem| {
-                mem.clone_from_slice(source)
-            })
+            self.slice(..source.len()).init_slice(|index| { source[index].clone() })
         }
     }
 }
@@ -111,12 +99,12 @@ impl<'a, T: FixedArray> UninitializedMemoryGuard<'a, T> {
     }
 
     #[inline]
-    pub fn init_array<Init: Fn(usize) -> T::Item>(self, init: Init) -> MemoryGuard<'a, [T::Item]> {
-        self.into_slice_guard().init_array(init)
+    pub fn init_slice<Init: Fn(usize) -> T::Item>(self, init: Init) -> SliceMemoryGuard<'a, T::Item> {
+        self.into_slice_guard().init_slice(init)
     }
 
     #[inline]
-    pub fn init_copy_of(self, source: &[T::Item]) -> MemoryGuard<'a, [T::Item]>
+    pub fn init_copy_of(self, source: &[T::Item]) -> SliceMemoryGuard<'a, T::Item>
         where T::Item: Clone
     {
         self.into_slice_guard().init_copy_of(source)
@@ -124,6 +112,63 @@ impl<'a, T: FixedArray> UninitializedMemoryGuard<'a, T> {
 }
 
 #[derive(Debug)]
-pub struct MemoryGuard<'a, T: ?Sized> {
+pub struct MemoryGuard<'a, T> {
     memory: &'a mut T,
+}
+
+impl<'a, T> Deref for MemoryGuard<'a, T> {
+    type Target = T;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.memory
+    }
+}
+
+impl<'a, T> DerefMut for MemoryGuard<'a, T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.memory
+    }
+}
+
+impl<'a, T> Drop for MemoryGuard<'a, T> {
+    #[inline]
+    fn drop(&mut self) {
+        drop(unsafe {
+            replace(self.memory, uninitialized())
+        });
+    }
+}
+
+#[derive(Debug)]
+pub struct SliceMemoryGuard<'a, T> {
+    memory: &'a mut [T],
+}
+
+impl<'a, T> Deref for SliceMemoryGuard<'a, T> {
+    type Target = [T];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.memory
+    }
+}
+
+impl<'a, T> DerefMut for SliceMemoryGuard<'a, T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.memory
+    }
+}
+
+impl<'a, T> Drop for SliceMemoryGuard<'a, T> {
+    #[inline]
+    fn drop(&mut self) {
+        for item in self.memory.into_iter() {
+            drop(unsafe {
+                replace(item, uninitialized())
+            });
+        }
+    }
 }
