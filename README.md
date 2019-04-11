@@ -78,7 +78,7 @@ to submit a bug, feature request or just ask a question.
 
 ## Changelog
 
-### 0.2.1
+### 0.2.2
 
 * Fixed drop-correctness for safe functions.
 
