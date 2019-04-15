@@ -13,11 +13,27 @@ pub struct UninitializedMemoryGuard<'a, T: ?Sized> {
 pub fn inplace<T, R, Consumer: FnOnce(UninitializedMemoryGuard<T>) -> R>(consumer: Consumer) -> R {
     unsafe {
         let mut memory_holder = ManuallyDrop::new(uninitialized::<T>());
-        consumer(UninitializedMemoryGuard { memory: &mut *memory_holder })
+        consumer(UninitializedMemoryGuard::new(&mut *memory_holder))
+    }
+}
+
+#[inline]
+pub fn alloc_array<T, R, Consumer: FnOnce(UninitializedMemoryGuard<[T]>) -> R>(size: usize, consumer: Consumer) -> R {
+    unsafe {
+        let mut memory_holder = Vec::with_capacity(size);
+        memory_holder.set_len(size);
+        let result = consumer(UninitializedMemoryGuard::new(&mut *memory_holder));
+        memory_holder.set_len(0);
+        result
     }
 }
 
 impl<'a, T: ?Sized> UninitializedMemoryGuard<'a, T> {
+    #[inline]
+    pub(crate) unsafe fn new(memory: &'a mut T) -> Self {
+        Self { memory }
+    }
+
     #[inline]
     pub unsafe fn unwrap(self) -> &'a mut T {
         self.memory
@@ -25,7 +41,7 @@ impl<'a, T: ?Sized> UninitializedMemoryGuard<'a, T> {
 
     #[inline]
     pub fn borrow<'b: 'a>(&'b mut self) -> UninitializedMemoryGuard<'b, T> {
-        UninitializedMemoryGuard { memory: self.memory }
+        unsafe { UninitializedMemoryGuard::new(self.memory) }
     }
 }
 
@@ -88,9 +104,7 @@ impl<'a, T: FixedArray> UninitializedMemoryGuard<'a, T> {
 
     #[inline]
     pub fn into_slice_guard(self) -> UninitializedMemoryGuard<'a, [T::Item]> {
-        UninitializedMemoryGuard {
-            memory: self.memory.as_slice_mut(),
-        }
+        unsafe { UninitializedMemoryGuard::new(self.memory.as_slice_mut()) }
     }
 
     #[inline]
