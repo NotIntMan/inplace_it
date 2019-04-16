@@ -75,6 +75,7 @@
 //!
 
 mod guards;
+mod fixed_array;
 
 use core::mem::{size_of, uninitialized, replace, forget};
 
