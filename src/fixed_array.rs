@@ -2,7 +2,7 @@
 /// [core::array::FixedSizeArray](core::array::FixedSizeArray).
 ///
 /// This is not a perfect solution. Inheritance from `AsRef<[T]> + AsMut<[T]>` would be preferable.
-/// But we until cannot implement `std` traits for `std` types so that inheritance limits us
+/// But until we cannot implement `std` traits for `std` types so that inheritance limits us
 /// and we cannot use `[T; n]` where `n > 32`.
 pub trait FixedArray {
     type Item;
@@ -33,146 +33,69 @@ macro_rules! impl_fixed_array_for_array {
     };
 }
 
-macro_rules! impl_fixed_array_for_array_group_10 {
+macro_rules! impl_fixed_array_for_array_group_32 {
     ($($length: expr),+) => {
         $(
             impl_fixed_array_for_array!(
-                $length, $length + 1, $length + 2, $length + 3, $length + 4,
-                $length + 5, $length + 6, $length + 7, $length + 8, $length + 9
+                $length, $length + 1, $length + 2, $length + 3,
+                $length + 4, $length + 5, $length + 6, $length + 7,
+                $length + 8, $length + 9, $length + 10, $length + 11,
+                $length + 12, $length + 13, $length + 14, $length + 15,
+                $length + 16, $length + 17, $length + 18, $length + 19,
+                $length + 20, $length + 21, $length + 22, $length + 23,
+                $length + 24, $length + 25, $length + 26, $length + 27,
+                $length + 28, $length + 29, $length + 30, $length + 31
             );
         )+
     };
 }
 
-macro_rules! impl_fixed_array_for_array_group_100 {
-    ($($length: expr),+) => {
-        $(
-            impl_fixed_array_for_array!(
-                $length, $length + 10, $length + 20, $length + 30, $length + 40,
-                $length + 50, $length + 60, $length + 70, $length + 80, $length + 90
-            );
-        )+
-    };
-}
-
-macro_rules! impl_fixed_array_for_array_group_1_000 {
-    ($($length: expr),+) => {
-        $(
-            impl_fixed_array_for_array_group_100!(
-                $length, $length + 100, $length + 200, $length + 300, $length + 400,
-                $length + 500, $length + 600, $length + 700, $length + 800, $length + 900
-            );
-        )+
-    };
-}
-
-macro_rules! impl_fixed_array_for_array_group_10_000 {
-    ($($length: expr),+) => {
-        $(
-            impl_fixed_array_for_array_group_1_000!(
-                $length, $length + 1000, $length + 2000, $length + 3000, $length + 4000,
-                $length + 5000, $length + 6000, $length + 7000, $length + 8000, $length + 9000
-            );
-        )+
-    };
-}
-
-macro_rules! impl_fixed_array_for_array_group_100_000 {
-    ($($length: expr),+) => {
-        $(
-            impl_fixed_array_for_array_group_10_000!(
-                $length, $length + 10000, $length + 20000, $length + 30000, $length + 40000,
-                $length + 50000, $length + 60000, $length + 70000, $length + 80000, $length + 90000
-            );
-        )+
-    };
-}
-
-macro_rules! impl_fixed_array_for_array_group_1_000_000 {
-    ($($length: expr),+) => {
-        $(
-            impl_fixed_array_for_array_group_100_000!(
-                $length, $length + 100000, $length + 200000, $length + 300000, $length + 400000,
-                $length + 500000, $length + 600000, $length + 700000, $length + 800000, $length + 900000
-            );
-        )+
-    };
-}
-
-#[cfg(target_pointer_width = "8")]
-impl_fixed_array_for_array_group_100!(0);
-
-#[cfg(target_pointer_width = "8")]
-impl_fixed_array_for_array_group_10!(100, 110);
-
-#[cfg(target_pointer_width = "8")]
-impl_fixed_array_for_array!(120, 121, 122, 123, 124, 125, 126, 127);
+impl_fixed_array_for_array_group_32!(0, 32, 64, 96);
 
 #[cfg(target_pointer_width = "16")]
-impl_fixed_array_for_array_group_10_000!(0, 10000, 20000, 30000, 40000, 50000);
-
-#[cfg(target_pointer_width = "16")]
-impl_fixed_array_for_array_group_1_000!(60000, 61000, 62000, 63000, 64000);
-
-#[cfg(target_pointer_width = "16")]
-impl_fixed_array_for_array_group_100!(65100, 65200, 65300, 65400);
-
-#[cfg(target_pointer_width = "16")]
-impl_fixed_array_for_array_group_10!(65500, 65510, 65520);
-
-#[cfg(target_pointer_width = "16")]
-impl_fixed_array_for_array!(65530, 65531, 65532, 65533, 65534, 65535);
+impl_fixed_array_for_array!(
+    160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736,
+    768, 800, 832, 864, 896, 928, 960, 992, 1024, 1056, 1088, 1120, 1152, 1184, 1216, 1248, 1280,
+    1312, 1344, 1376, 1408, 1440, 1472, 1504, 1536, 1568, 1600, 1632, 1664, 1696, 1728, 1760, 1792,
+    1824, 1856, 1888, 1920, 1952, 1984, 2016, 2048, 2080, 2112, 2144, 2176, 2208, 2240, 2272, 2304,
+    2336, 2368, 2400, 2432, 2464, 2496, 2528, 2560, 2592, 2624, 2656, 2688, 2720, 2752, 2784, 2816,
+    2848, 2880, 2912, 2944, 2976, 3008, 3040, 3072, 3104, 3136, 3168, 3200, 3232, 3264, 3296, 3328,
+    3360, 3392, 3424, 3456, 3488, 3520, 3552, 3584, 3616, 3648, 3680, 3712, 3744, 3776, 3808, 3840,
+    3872, 3904, 3936, 3968, 4000, 4032, 4064, 4096
+);
 
 #[cfg(target_pointer_width = "32")]
-impl_fixed_array_for_array_group_1_000_000!(0);
-
-#[cfg(target_pointer_width = "32")]
-impl_fixed_array_for_array_group_10_000!(1000000, 1010000, 1020000, 1030000);
-
-#[cfg(target_pointer_width = "32")]
-impl_fixed_array_for_array_group_1_000!(1040000, 1041000, 1042000, 1043000, 1044000, 1045000, 1046000, 1047000);
-
-#[cfg(target_pointer_width = "32")]
-impl_fixed_array_for_array_group_100!(1048000, 1048100, 1048200, 1048300, 1048400);
-
-#[cfg(target_pointer_width = "32")]
-impl_fixed_array_for_array_group_10!(1048500, 1048510, 1048520, 1048530, 1048540, 1048550, 1048560);
-
-#[cfg(target_pointer_width = "32")]
-impl_fixed_array_for_array!(1048570, 1048571, 1048572, 1048573, 1048574, 1048575);
+impl_fixed_array_for_array!(
+    160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736,
+    768, 800, 832, 864, 896, 928, 960, 992, 1024, 1056, 1088, 1120, 1152, 1184, 1216, 1248, 1280,
+    1312, 1344, 1376, 1408, 1440, 1472, 1504, 1536, 1568, 1600, 1632, 1664, 1696, 1728, 1760, 1792,
+    1824, 1856, 1888, 1920, 1952, 1984, 2016, 2048, 2080, 2112, 2144, 2176, 2208, 2240, 2272, 2304,
+    2336, 2368, 2400, 2432, 2464, 2496, 2528, 2560, 2592, 2624, 2656, 2688, 2720, 2752, 2784, 2816,
+    2848, 2880, 2912, 2944, 2976, 3008, 3040, 3072, 3104, 3136, 3168, 3200, 3232, 3264, 3296, 3328,
+    3360, 3392, 3424, 3456, 3488, 3520, 3552, 3584, 3616, 3648, 3680, 3712, 3744, 3776, 3808, 3840,
+    3872, 3904, 3936, 3968, 4000, 4032, 4064, 4096
+);
 
 #[cfg(target_pointer_width = "64")]
-impl_fixed_array_for_array_group_1_000_000!(0);
-
-#[cfg(target_pointer_width = "64")]
-impl_fixed_array_for_array_group_10_000!(1000000, 1010000, 1020000, 1030000);
-
-#[cfg(target_pointer_width = "64")]
-impl_fixed_array_for_array_group_1_000!(1040000, 1041000, 1042000, 1043000, 1044000, 1045000, 1046000, 1047000);
-
-#[cfg(target_pointer_width = "64")]
-impl_fixed_array_for_array_group_100!(1048000, 1048100, 1048200, 1048300, 1048400);
-
-#[cfg(target_pointer_width = "64")]
-impl_fixed_array_for_array_group_10!(1048500, 1048510, 1048520, 1048530, 1048540, 1048550, 1048560);
-
-#[cfg(target_pointer_width = "64")]
-impl_fixed_array_for_array!(1048570, 1048571, 1048572, 1048573, 1048574, 1048575);
+impl_fixed_array_for_array!(
+    160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736,
+    768, 800, 832, 864, 896, 928, 960, 992, 1024, 1056, 1088, 1120, 1152, 1184, 1216, 1248, 1280,
+    1312, 1344, 1376, 1408, 1440, 1472, 1504, 1536, 1568, 1600, 1632, 1664, 1696, 1728, 1760, 1792,
+    1824, 1856, 1888, 1920, 1952, 1984, 2016, 2048, 2080, 2112, 2144, 2176, 2208, 2240, 2272, 2304,
+    2336, 2368, 2400, 2432, 2464, 2496, 2528, 2560, 2592, 2624, 2656, 2688, 2720, 2752, 2784, 2816,
+    2848, 2880, 2912, 2944, 2976, 3008, 3040, 3072, 3104, 3136, 3168, 3200, 3232, 3264, 3296, 3328,
+    3360, 3392, 3424, 3456, 3488, 3520, 3552, 3584, 3616, 3648, 3680, 3712, 3744, 3776, 3808, 3840,
+    3872, 3904, 3936, 3968, 4000, 4032, 4064, 4096
+);
 
 #[cfg(target_pointer_width = "128")]
-impl_fixed_array_for_array_group_1_000_000!(0);
-
-#[cfg(target_pointer_width = "128")]
-impl_fixed_array_for_array_group_10_000!(1000000, 1010000, 1020000, 1030000);
-
-#[cfg(target_pointer_width = "128")]
-impl_fixed_array_for_array_group_1_000!(1040000, 1041000, 1042000, 1043000, 1044000, 1045000, 1046000, 1047000);
-
-#[cfg(target_pointer_width = "128")]
-impl_fixed_array_for_array_group_100!(1048000, 1048100, 1048200, 1048300, 1048400);
-
-#[cfg(target_pointer_width = "128")]
-impl_fixed_array_for_array_group_10!(1048500, 1048510, 1048520, 1048530, 1048540, 1048550, 1048560);
-
-#[cfg(target_pointer_width = "128")]
-impl_fixed_array_for_array!(1048570, 1048571, 1048572, 1048573, 1048574, 1048575);
+impl_fixed_array_for_array!(
+    160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736,
+    768, 800, 832, 864, 896, 928, 960, 992, 1024, 1056, 1088, 1120, 1152, 1184, 1216, 1248, 1280,
+    1312, 1344, 1376, 1408, 1440, 1472, 1504, 1536, 1568, 1600, 1632, 1664, 1696, 1728, 1760, 1792,
+    1824, 1856, 1888, 1920, 1952, 1984, 2016, 2048, 2080, 2112, 2144, 2176, 2208, 2240, 2272, 2304,
+    2336, 2368, 2400, 2432, 2464, 2496, 2528, 2560, 2592, 2624, 2656, 2688, 2720, 2752, 2784, 2816,
+    2848, 2880, 2912, 2944, 2976, 3008, 3040, 3072, 3104, 3136, 3168, 3200, 3232, 3264, 3296, 3328,
+    3360, 3392, 3424, 3456, 3488, 3520, 3552, 3584, 3616, 3648, 3680, 3712, 3744, 3776, 3808, 3840,
+    3872, 3904, 3936, 3968, 4000, 4032, 4064, 4096
+);
