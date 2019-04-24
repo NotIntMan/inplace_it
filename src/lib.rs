@@ -74,8 +74,10 @@
 //! allocating in the heap.
 //!
 
-mod guards;
-mod fixed_array;
+pub mod guards;
+pub mod fixed_array;
+#[cfg(test)]
+mod tests;
 
 use core::mem::{size_of, uninitialized, replace, forget};
 
