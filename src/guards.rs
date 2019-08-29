@@ -1,41 +1,23 @@
 use core::{
-    mem::{ManuallyDrop, uninitialized, forget, replace, drop},
+    mem::{MaybeUninit},
     ops::{Bound, Deref, DerefMut, RangeBounds},
 };
-use crate::FixedArray;
+use crate::fixed_array::FixedArray;
+use std::ptr::drop_in_place;
+use std::intrinsics::transmute;
 
-#[derive(Debug)]
-pub struct UninitializedMemoryGuard<'a, T: ?Sized> {
-    memory: &'a mut T,
+pub struct UninitializedMemoryGuard<'a, T> {
+    memory: &'a mut MaybeUninit<T>,
 }
 
-#[inline]
-pub fn inplace<T, R, Consumer: FnOnce(UninitializedMemoryGuard<T>) -> R>(consumer: Consumer) -> R {
-    unsafe {
-        let mut memory_holder = ManuallyDrop::new(uninitialized::<T>());
-        consumer(UninitializedMemoryGuard::new(&mut *memory_holder))
-    }
-}
-
-#[inline]
-pub fn alloc_array<T, R, Consumer: FnOnce(UninitializedMemoryGuard<[T]>) -> R>(size: usize, consumer: Consumer) -> R {
-    unsafe {
-        let mut memory_holder = Vec::with_capacity(size);
-        memory_holder.set_len(size);
-        let result = consumer(UninitializedMemoryGuard::new(&mut *memory_holder));
-        memory_holder.set_len(0);
-        result
-    }
-}
-
-impl<'a, T: ?Sized> UninitializedMemoryGuard<'a, T> {
+impl<'a, T> UninitializedMemoryGuard<'a, T> {
     #[inline]
-    pub(crate) unsafe fn new(memory: &'a mut T) -> Self {
+    pub(crate) fn new(memory: &'a mut MaybeUninit<T>) -> Self {
         Self { memory }
     }
 
     #[inline]
-    pub unsafe fn unwrap(self) -> &'a mut T {
+    pub unsafe fn unwrap(self) -> &'a mut MaybeUninit<T> {
         self.memory
     }
 
@@ -43,17 +25,24 @@ impl<'a, T: ?Sized> UninitializedMemoryGuard<'a, T> {
     pub fn borrow<'b: 'a>(&'b mut self) -> UninitializedMemoryGuard<'b, T> {
         unsafe { UninitializedMemoryGuard::new(self.memory) }
     }
-}
 
-impl<'a, T> UninitializedMemoryGuard<'a, T> {
     #[inline]
     pub fn init(self, value: T) -> MemoryGuard<'a, T> {
-        forget(replace(self.memory, value));
+        unsafe { *self.memory.as_mut_ptr() = value };
         MemoryGuard { memory: self.memory }
     }
 }
 
-impl<'a, I> UninitializedMemoryGuard<'a, [I]> {
+pub struct UninitializedSliceMemoryGuard<'a, T> {
+    memory: &'a mut [MaybeUninit<T>],
+}
+
+impl<'a, I> UninitializedSliceMemoryGuard<'a, I> {
+    #[inline]
+    pub(crate) fn new(memory: &'a mut [MaybeUninit<I>]) -> Self {
+        Self { memory }
+    }
+
     #[inline]
     pub fn len(&self) -> usize {
         self.memory.len()
@@ -77,11 +66,9 @@ impl<'a, I> UninitializedMemoryGuard<'a, [I]> {
     }
 
     #[inline]
-    pub fn init_slice<Init: Fn(usize) -> I>(self, init: Init) -> SliceMemoryGuard<'a, I> {
+    pub fn init<Init: Fn(usize) -> I>(self, init: Init) -> SliceMemoryGuard<'a, I> {
         for (index, item) in self.memory.into_iter().enumerate() {
-            unsafe {
-                forget(replace(item, init(index)))
-            }
+            unsafe { *item.as_mut_ptr() = init(index); }
         }
         SliceMemoryGuard { memory: self.memory }
     }
@@ -90,9 +77,7 @@ impl<'a, I> UninitializedMemoryGuard<'a, [I]> {
     pub fn init_copy_of(self, source: &[I]) -> SliceMemoryGuard<'a, I>
         where I: Clone
     {
-        unsafe {
-            self.slice(..source.len()).init_slice(|index| { source[index].clone() })
-        }
+        self.slice(..source.len()).init(|index| { source[index].clone() })
     }
 }
 
@@ -103,18 +88,18 @@ impl<'a, T: FixedArray> UninitializedMemoryGuard<'a, T> {
     }
 
     #[inline]
-    pub fn into_slice_guard(self) -> UninitializedMemoryGuard<'a, [T::Item]> {
-        unsafe { UninitializedMemoryGuard::new(self.memory.as_slice_mut()) }
+    pub fn into_slice_guard(self) -> UninitializedSliceMemoryGuard<'a, T::Item> {
+        unsafe { UninitializedSliceMemoryGuard::new(transmute(self.memory)) }
     }
 
     #[inline]
-    pub fn slice<Range: RangeBounds<usize>>(self, range: Range) -> UninitializedMemoryGuard<'a, [T::Item]> {
+    pub fn slice<Range: RangeBounds<usize>>(self, range: Range) -> UninitializedSliceMemoryGuard<'a, T::Item> {
         self.into_slice_guard().slice(range)
     }
 
     #[inline]
     pub fn init_slice<Init: Fn(usize) -> T::Item>(self, init: Init) -> SliceMemoryGuard<'a, T::Item> {
-        self.into_slice_guard().init_slice(init)
+        self.into_slice_guard().init(init)
     }
 
     #[inline]
@@ -125,9 +110,8 @@ impl<'a, T: FixedArray> UninitializedMemoryGuard<'a, T> {
     }
 }
 
-#[derive(Debug)]
 pub struct MemoryGuard<'a, T> {
-    memory: &'a mut T,
+    memory: &'a mut MaybeUninit<T>,
 }
 
 impl<'a, T> Deref for MemoryGuard<'a, T> {
@@ -135,29 +119,26 @@ impl<'a, T> Deref for MemoryGuard<'a, T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.memory
+        unsafe { transmute(self.memory) }
     }
 }
 
 impl<'a, T> DerefMut for MemoryGuard<'a, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.memory
+        unsafe { transmute(self.memory) }
     }
 }
 
 impl<'a, T> Drop for MemoryGuard<'a, T> {
     #[inline]
     fn drop(&mut self) {
-        drop(unsafe {
-            replace(self.memory, uninitialized())
-        });
+        unsafe { drop_in_place(self.memory.as_mut_ptr()); }
     }
 }
 
-#[derive(Debug)]
 pub struct SliceMemoryGuard<'a, T> {
-    memory: &'a mut [T],
+    memory: &'a mut [MaybeUninit<T>],
 }
 
 impl<'a, T> Deref for SliceMemoryGuard<'a, T> {
@@ -165,14 +146,14 @@ impl<'a, T> Deref for SliceMemoryGuard<'a, T> {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.memory
+        unsafe { transmute(self.memory) }
     }
 }
 
 impl<'a, T> DerefMut for SliceMemoryGuard<'a, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.memory
+        unsafe { transmute(self.memory) }
     }
 }
 
@@ -180,9 +161,7 @@ impl<'a, T> Drop for SliceMemoryGuard<'a, T> {
     #[inline]
     fn drop(&mut self) {
         for item in self.memory.into_iter() {
-            drop(unsafe {
-                replace(item, uninitialized())
-            });
+            unsafe { drop_in_place(item.as_mut_ptr()); }
         }
     }
 }
