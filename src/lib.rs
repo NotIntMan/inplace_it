@@ -134,7 +134,7 @@ pub fn alloc_array<T, R, Consumer: FnOnce(UninitializedSliceMemoryGuard<T>) -> R
     unsafe {
         let mut memory_holder = Vec::<T>::with_capacity(size);
         memory_holder.set_len(size);
-        let result = consumer(UninitializedSliceMemoryGuard::new(transmute(&mut *memory_holder)));
+        let result = consumer(UninitializedSliceMemoryGuard::new(transmute::<&mut [T], &mut [MaybeUninit<T>]>(&mut *memory_holder)));
         memory_holder.set_len(0);
         result
     }

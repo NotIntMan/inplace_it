@@ -1,4 +1,5 @@
-use crate::guards::{UninitializedMemoryGuard, UninitializedSliceMemoryGuard};
+use crate::guards::UninitializedSliceMemoryGuard;
+use core::mem::MaybeUninit;
 
 /// This trait is a extended copy of unstable
 /// [core::array::FixedSizeArray](core::array::FixedSizeArray).
@@ -8,7 +9,7 @@ use crate::guards::{UninitializedMemoryGuard, UninitializedSliceMemoryGuard};
 /// and we cannot use `[T; n]` where `n > 32`.
 pub trait FixedArray {
     type Item;
-    fn len() -> usize;
+    const LEN: usize;
     fn as_slice(&self) -> &[Self::Item];
     fn as_slice_mut(&mut self) -> &mut [Self::Item];
 }
@@ -18,10 +19,7 @@ macro_rules! impl_fixed_array_for_array {
         $(
             impl<T> FixedArray for [T; $length] {
                 type Item = T;
-                #[inline]
-                fn len() -> usize {
-                    $length
-                }
+                const LEN: usize = $length;
                 #[inline]
                 fn as_slice(&self) -> &[Self::Item] {
                     self
@@ -71,11 +69,10 @@ pub fn try_inplace_array<T, R, Consumer>(size: usize, consumer: Consumer) -> Res
     where Consumer: FnOnce(UninitializedSliceMemoryGuard<T>) -> R
 {
     macro_rules! inplace {
-        ($size: expr) => {
-            $crate::inplace(|guard: UninitializedMemoryGuard<[T; $size]>|
-                consumer(guard.into_slice_guard())
-            )
-        };
+        ($size: expr) => {{
+            let mut memory: [MaybeUninit<T>; $size] = unsafe { MaybeUninit::uninit().assume_init() };
+            consumer(UninitializedSliceMemoryGuard::new(&mut memory))
+        }};
     }
     #[cfg(target_pointer_width = "8")]
     let result = match size {
