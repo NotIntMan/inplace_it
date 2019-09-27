@@ -71,7 +71,9 @@ pub fn try_inplace_array<T, R, Consumer>(size: usize, consumer: Consumer) -> Res
     macro_rules! inplace {
         ($size: expr) => {{
             let mut memory: [MaybeUninit<T>; $size] = unsafe { MaybeUninit::uninit().assume_init() };
-            consumer(UninitializedSliceMemoryGuard::new(&mut memory))
+            unsafe {
+                consumer(UninitializedSliceMemoryGuard::new(&mut memory))
+            }
         }};
     }
     #[cfg(target_pointer_width = "8")]

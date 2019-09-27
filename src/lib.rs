@@ -71,8 +71,6 @@
 
 pub mod guards;
 pub mod fixed_array;
-#[cfg(test)]
-mod tests;
 
 use crate::guards::{UninitializedMemoryGuard, UninitializedSliceMemoryGuard};
 use std::{
@@ -120,7 +118,9 @@ use crate::fixed_array::try_inplace_array;
 #[inline]
 pub fn inplace<T, R, Consumer: FnOnce(UninitializedMemoryGuard<T>) -> R>(consumer: Consumer) -> R {
     let mut memory_holder = MaybeUninit::uninit();
-    consumer(UninitializedMemoryGuard::new(&mut memory_holder))
+    unsafe {
+        consumer(UninitializedMemoryGuard::new(&mut memory_holder))
+    }
 }
 
 /// `alloc_array` is used when `inplace_array` realize that the size of requested array of `T`
@@ -134,7 +134,9 @@ pub fn alloc_array<T, R, Consumer: FnOnce(UninitializedSliceMemoryGuard<T>) -> R
     unsafe {
         let mut memory_holder = Vec::<T>::with_capacity(size);
         memory_holder.set_len(size);
-        let result = consumer(UninitializedSliceMemoryGuard::new(transmute::<&mut [T], &mut [MaybeUninit<T>]>(&mut *memory_holder)));
+        let result = consumer(UninitializedSliceMemoryGuard::new(
+            transmute::<&mut [T], &mut [MaybeUninit<T>]>(&mut *memory_holder)
+        ));
         memory_holder.set_len(0);
         result
     }
