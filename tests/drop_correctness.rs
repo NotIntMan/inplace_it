@@ -1,6 +1,6 @@
 use std::cell::Cell;
 use inplace_it::*;
-use inplace_it::guards::{UninitializedMemoryGuard, UninitializedSliceMemoryGuard};
+use inplace_it::guards::UninitializedSliceMemoryGuard;
 use std::mem::MaybeUninit;
 use inplace_it::fixed_array::try_inplace_array;
 
@@ -59,18 +59,6 @@ fn maybe_uninit_works_as_expected() {
     let mut memory = MaybeUninit::<DropCounterTrigger>::new(DropCounterTrigger::new());
     unsafe { core::ptr::drop_in_place(memory.as_mut_ptr()); }
     drop(memory);
-    assert_eq!(DropCounter::get(), 1);
-}
-
-#[test]
-fn inplace_should_correctly_drop_values() {
-    DropCounter::clear();
-    inplace(|_guard: UninitializedMemoryGuard<DropCounterTrigger>| {});
-    assert_eq!(DropCounter::get(), 0);
-    DropCounter::clear();
-    inplace(|guard| {
-        guard.init(DropCounterTrigger::new());
-    });
     assert_eq!(DropCounter::get(), 1);
 }
 

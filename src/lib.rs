@@ -72,7 +72,7 @@
 pub mod guards;
 pub mod fixed_array;
 
-use crate::guards::{UninitializedMemoryGuard, UninitializedSliceMemoryGuard};
+use crate::guards::UninitializedSliceMemoryGuard;
 use std::{
     mem::MaybeUninit,
     intrinsics::transmute

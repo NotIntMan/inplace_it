@@ -3,6 +3,7 @@
     <words>
       <w>deref</w>
       <w>inplace</w>
+      <w>uninit</w>
       <w>usize</w>
     </words>
   </dictionary>
