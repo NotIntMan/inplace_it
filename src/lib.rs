@@ -11,57 +11,36 @@
 //! The simplest way to use it is:
 //!
 //! ```rust
-//! /*use inplace_it::{inplace_array, guards::UninitializedMemoryGuard};
+//! use inplace_it::{inplace_or_alloc_array, UninitializedSliceMemoryGuard};
 //!
-//! inplace_array(
+//! inplace_or_alloc_array(
 //!     150, // size of needed array to allocate
-//!     |guard: UninitializedMemoryGuard<[usize]>| { // and this is consumer of initialized memory
-//!         assert_eq!(160, guard.len());
-//!     }
-//! )*/
-//! ```
+//!     |mut uninit_guard: UninitializedSliceMemoryGuard<u16>| { // and this is consumer of uninitialized memory
+//!         assert_eq!(160, uninit_guard.len());
 //!
-//! More details you can find in [inplace_array](fn.inplace_array.html) description.
-//!
-//! You can also place some other data.
-//!
-//! ```rust
-//! /*use inplace_it::{inplace, guards::{UninitializedMemoryGuard, MemoryGuard}};
-//!
-//! let source = [1, 2, 3, 4, 10];
-//!
-//! inplace(
-//!     |guard: UninitializedMemoryGuard<(usize, usize)>| { // consumer which will use our allocated array
-//!         let initialized_guard: MemoryGuard<(usize, usize)> = guard.init((1, 2));
-//!         assert_eq!((1, 2), *initialized_guard);
-//!     }
-//! );*/
-//! ```
-//!
-//! More details you can find in [inplace_copy_of](fn.inplace_copy_of.html) description.
-//!
-//! You can also place uninitialized array.
-//! This operation is *faster* because of it haven't initializing overhead
-//! but you *should* use it with care.
-//!
-//! ```rust
-//! /*use inplace_it::inplace_array_uninitialized;
-//!
-//! unsafe {
-//!     inplace_array_uninitialized(
-//!         228, //size of array
-//!         4096, // limit of allowed stack allocation in bytes
-//!         |memory: &mut [usize]| { // consumer which will use our allocated array
-//!             // Unsafely placed array sometimes can be more that you need.
-//!             assert!(memory.len() >= 228);
-//!             // In secret, the size will be equal to the nearest multiple of 32 (upwards, of course).
-//!             assert_eq!(memory.len(), 256);
+//!         {
+//!             // You can borrow guard to reuse memory
+//!             let borrowed_uninit_guard = uninit_guard.borrow();
+//!             // Let's initialize memory
+//!             // Note that borrowed_uninit_guard will be consumed (destroyed to produce initialized memory guard)
+//!             let init_guard = borrowed_uninit_guard.init(|index| index as u16 + 1);
+//!             // Memory not contains elements [1, 2, ..., 160]
+//!             // Lets check it. Sum of [1, 2, ..., 160] = 12880
+//!             let sum: u16 = init_guard.iter().sum();
+//!             assert_eq!(sum, 12880);
 //!         }
-//!     );
-//! }*/
-//! ```
 //!
-//! More details you can find in [inplace_array_uninitialized](fn.inplace_array_uninitialized.html) description.
+//!         {
+//!             // If you don't want to reuse memory, you can init new guard directly
+//!             let init_guard = uninit_guard.init(|index| index as u16 * 2);
+//!             // Memory not contains elements [0, 2, 4, ..., 318]
+//!             // Lets check it. Sum of [0, 2, 4, ..., 318] = 25440
+//!             let sum: u16 = init_guard.iter().sum();
+//!             assert_eq!(sum, 25440);
+//!         }
+//!     }
+//! )
+//! ```
 //!
 //! ## Why?
 //!
