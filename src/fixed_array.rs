@@ -64,7 +64,43 @@ impl_fixed_array_for_array!(
     3840, 3872, 3904, 3936, 3968, 4000, 4032, 4064, 4096
 );
 
-#[inline]
+/// `try_inplace_array` trying to place an array of `T` on the stack and pass the guard of memory into the
+/// `consumer` closure. `consumer`'s result will be returned as `Ok(result)`.
+///
+/// If the result of array of `T` is more than 4096 then `Err(consumer)` will be returned.
+///
+/// Sometimes size of allocated array might be more than requested. For sizes larger than 32,
+/// the following formula is used: `roundUp(size/32)*32`. This is a simplification that used
+/// for keeping code short, simple and able to optimize.
+/// For example, for requested 50 item `[T; 64]` will be allocated.
+/// For 120 items - `[T; 128]` and so on.
+///
+/// Note that rounding size up is working for fixed-sized arrays only. If function decides to
+/// allocate a vector then its size will be equal to requested.
+///
+/// # Examples
+///
+/// ```rust
+/// use inplace_it::{
+///     try_inplace_array,
+///     UninitializedSliceMemoryGuard,
+/// };
+///
+/// let sum = try_inplace_array(100, |uninit_guard: UninitializedSliceMemoryGuard<u16>| {
+///     assert_eq!(uninit_guard.len(), 128);
+///     // For now, our memory is placed/allocated but uninitialized.
+///     // Let's initialize it!
+///     let guard = uninit_guard.init(|index| index as u16 * 2);
+///     // For now, memory contains content like [0, 2, 4, 6, ..., 252, 254]
+///     let sum: u16 = guard.iter().sum();
+///     sum
+/// });
+/// // Sum of [0, 2, 4, 6, ..., 252, 254] = sum of [0, 1, 2, 3, ..., 126, 127] * 2 = ( 127 * (127+1) ) / 2 * 2
+/// match sum {
+///     Ok(sum) => assert_eq!(sum, 127 * 128),
+///     Err(_) => unreachable!("Placing fails"),
+/// };
+/// ```
 pub fn try_inplace_array<T, R, Consumer>(size: usize, consumer: Consumer) -> Result<R, Consumer>
     where Consumer: FnOnce(UninitializedSliceMemoryGuard<T>) -> R
 {

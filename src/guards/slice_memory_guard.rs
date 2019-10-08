@@ -14,7 +14,7 @@ use core::{
 ///
 /// ### Example
 /// ```rust
-/// use inplace_it::guards::SliceMemoryGuard;
+/// use inplace_it::SliceMemoryGuard;
 /// use std::mem::MaybeUninit;
 ///
 /// // Placing uninitialized memory

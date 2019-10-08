@@ -69,9 +69,10 @@
 //! allocating in the heap.
 //!
 
-pub mod guards;
+mod guards;
 mod fixed_array;
 mod alloc_array;
 
+pub use guards::*;
 pub use fixed_array::*;
 pub use alloc_array::*;

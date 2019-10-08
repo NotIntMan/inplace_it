@@ -20,7 +20,7 @@ use crate::guards::SliceMemoryGuard;
 ///
 /// ### Example
 /// ```rust
-/// use inplace_it::guards::UninitializedSliceMemoryGuard;
+/// use inplace_it::UninitializedSliceMemoryGuard;
 /// use std::mem::MaybeUninit;
 ///
 /// // Placing uninitialized memory

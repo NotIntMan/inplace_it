@@ -1,6 +1,5 @@
 use std::cell::Cell;
 use inplace_it::*;
-use inplace_it::guards::UninitializedSliceMemoryGuard;
 use std::mem::MaybeUninit;
 
 struct DropCounter {
