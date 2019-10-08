@@ -14,55 +14,35 @@ This crate is created for one purpose: allocating small arrays on the stack.
 The simplest way to use it is:
 
 ```rust
-use inplace_it::inplace_array;
+use inplace_it::{inplace_or_alloc_array, UninitializedSliceMemoryGuard};
 
-inplace_array(
+inplace_or_alloc_array(
     150, // size of needed array to allocate
-    4096, // limit in bytes allowed to allocate on the stack
-          // if the limit is exceeded then Vec<T> will be used
-    |index| index * 2, // initializer will be called for every item in the array
-    |memory: &mut [usize]| { // and this is consumer of initialized memory
-        assert_eq!(memory.len(), 150);
+    |mut uninit_guard: UninitializedSliceMemoryGuard<u16>| { // and this is consumer of uninitialized memory
+        assert_eq!(160, uninit_guard.len());
+        
+        {
+         // You can borrow guard to reuse memory
+         let borrowed_uninit_guard = uninit_guard.borrow();
+         // Let's initialize memory
+         // Note that borrowed_uninit_guard will be consumed (destroyed to produce initialized memory guard)
+         let init_guard = borrowed_uninit_guard.init(|index| index as u16 + 1);
+         // Memory not contains elements [1, 2, ..., 160]
+         // Lets check it. Sum of [1, 2, ..., 160] = 12880
+         let sum: u16 = init_guard.iter().sum();
+         assert_eq!(sum, 12880);
+        }
+        
+        {
+         // If you don't want to reuse memory, you can init new guard directly
+         let init_guard = uninit_guard.init(|index| index as u16 * 2);
+         // Memory not contains elements [0, 2, 4, ..., 318]
+         // Lets check it. Sum of [0, 2, 4, ..., 318] = 25440
+         let sum: u16 = init_guard.iter().sum();
+         assert_eq!(sum, 25440);
+        }
     }
 )
-```
-
-You can also place copy of some array.
-
-```rust
-use inplace_it::inplace_copy_of;
-
-let source = [1, 2, 3, 4, 10];
-
-inplace_copy_of(
-    &source, //source for copy
-    4096, // limit of allowed stack allocation in bytes
-    |memory: &mut [usize]| { // consumer which will use our allocated array
-        // Given reference will contains exactly copy of given array.
-        assert_eq!(*memory, source);
-    }
-);
-```
-
-You can also place uninitialized array.
-This operation is *faster* because of it haven't initializing overhead
-but you *should* use it with care.
-
-```rust
-use inplace_it::inplace_array_uninitialized;
-
-unsafe {
-    inplace_array_uninitialized(
-        228, //size of array
-        4096, // limit of allowed stack allocation in bytes
-        |memory: &mut [usize]| { // consumer which will use our allocated array
-            // Unsafely placed array sometimes can be more that you need.
-            assert!(memory.len() >= 228);
-            // In secret, the size will be equal to the nearest multiple of 32 (upwards, of course).
-            assert_eq!(memory.len(), 256);
-        }
-    );
-}
 ```
 
 ## Why?
@@ -76,10 +56,11 @@ You can read the [API reference](https://docs.rs/inplace_it) for more details
 or create an [new issue](https://github.com/NotIntMan/inplace_it/issues/new)
 to submit a bug, feature request or just ask a question.
 
-## Changelog
+## Release notes
+
+### 0.3.0
+* API safety. No more unsafe external functions.
+* Drop correctness. No more dropping of uninitialized memory.
 
 ### 0.2.2
-
-* Fixed drop-correctness for safe functions.
-
-    Now unsafe function do not drop your data but safe function do it correctly.
+* Fixed drop-correctness for safe functions. Now unsafe function do not drop your data but safe function do it correctly.
