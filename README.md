@@ -55,3 +55,9 @@ allocating in the heap.
 You can read the [API reference](https://docs.rs/inplace_it) for more details
 or create an [new issue](https://github.com/NotIntMan/inplace_it/issues/new)
 to submit a bug, feature request or just ask a question.
+
+## Release notes
+
+### 0.3.0
+* API safety. No more unsafe external functions.
+* Drop correctness. No more dropping of uninitialized memory.
