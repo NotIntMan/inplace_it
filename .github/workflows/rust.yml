@@ -1,9 +1,9 @@
-name: Rust
+name: Build and test
 
 on: [push]
 
 jobs:
-  build:
+  build-n-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
