@@ -1,7 +1,8 @@
 # Inplace it!
 
-![Version badge](https://img.shields.io/crates/v/inplace_it.svg)
-![License badge](https://img.shields.io/crates/l/inplace_it.svg)
+[![Version badge](https://img.shields.io/crates/v/inplace_it.svg)](https://crates.io/crates/inplace_it)
+[![License badge](https://img.shields.io/crates/l/inplace_it.svg)](https://github.com/NotIntMan/inplace_it/blob/master/LICENSE.txt)
+[![Build Status](https://github.com/NotIntMan/inplace_it/workflows/Build%20and%20test/badge.svg)](https://github.com/NotIntMan/inplace_it/actions)
 
 Place small arrays on the stack with a low cost!
 
