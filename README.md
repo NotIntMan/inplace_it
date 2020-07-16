@@ -59,6 +59,9 @@ to submit a bug, feature request or just ask a question.
 
 ## Release notes
 
+### 0.3.1
+* Initialize with an exact-size iterator.
+
 ### 0.3.0
 * API safety. No more unsafe external functions.
 * Drop correctness. No more dropping of uninitialized memory.

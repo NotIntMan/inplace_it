@@ -65,10 +65,10 @@ pub struct UninitializedSliceMemoryGuard<'a, T> {
     memory: &'a mut [MaybeUninit<T>],
 }
 
-impl<'a, I> UninitializedSliceMemoryGuard<'a, I> {
+impl<'a, T> UninitializedSliceMemoryGuard<'a, T> {
     /// Initialize memory guard
     #[inline]
-    pub unsafe fn new(memory: &'a mut [MaybeUninit<I>]) -> Self {
+    pub unsafe fn new(memory: &'a mut [MaybeUninit<T>]) -> Self {
         Self { memory }
     }
 
@@ -105,7 +105,7 @@ impl<'a, I> UninitializedSliceMemoryGuard<'a, I> {
     /// Initialize memory and make new guard of initialized memory.
     /// Given `init` closure will be used to initialize elements of memory slice.
     #[inline]
-    pub fn init(self, init: impl FnMut(usize) -> I) -> SliceMemoryGuard<'a, I> {
+    pub fn init(self, init: impl FnMut(usize) -> T) -> SliceMemoryGuard<'a, T> {
         unsafe {
             SliceMemoryGuard::new(self.memory, init)
         }
@@ -119,16 +119,28 @@ impl<'a, I> UninitializedSliceMemoryGuard<'a, I> {
     ///
     /// Panic can be reached when given `source`'s range is out of memory's range.
     #[inline]
-    pub fn init_copy_of(self, source: &[I]) -> SliceMemoryGuard<'a, I>
-        where I: Clone
+    pub fn init_copy_of(self, source: &[T]) -> SliceMemoryGuard<'a, T>
+        where T: Clone
     {
         self.slice(..source.len()).init(|index| { source[index].clone() })
+    }
+
+    /// Initialize memory and make new guard of initialized memory.
+    /// Given `iter` exact-size iterator will be used to initialize elements of memory slice.
+    /// Returned guard will contain sliced memory to `iter`'s length.
+    ///
+    /// ### Panics
+    ///
+    /// Panic can be reached when given `iter`'s length is out of memory's range.
+    #[inline]
+    pub fn init_with_iter(self, mut iter: impl ExactSizeIterator<Item = T>) -> SliceMemoryGuard<'a, T> {
+        self.slice(..iter.len()).init(|_index| { iter.next().unwrap() })
     }
 
     /// Create new uninit memory guard with less or equal lifetime to original guard's lifetime.
     /// This function should be used to reuse memory because init-API consumes the guard.
     #[inline]
-    pub fn borrow(&mut self) -> UninitializedSliceMemoryGuard<I> {
+    pub fn borrow(&mut self) -> UninitializedSliceMemoryGuard<T> {
         unsafe {
             UninitializedSliceMemoryGuard::new(self.memory)
         }
