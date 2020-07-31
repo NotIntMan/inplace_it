@@ -105,11 +105,11 @@ pub fn try_inplace_array<T, R, Consumer>(size: usize, consumer: Consumer) -> Res
     where Consumer: FnOnce(UninitializedSliceMemoryGuard<T>) -> R
 {
     macro_rules! inplace {
-        ($size: expr) => {{
-            let mut memory: [MaybeUninit<T>; $size] = unsafe { MaybeUninit::uninit().assume_init() };
-            unsafe {
+        ($size: expr) => {unsafe {
+            indirect(move || {
+                let mut memory: [MaybeUninit<T>; $size] = MaybeUninit::uninit().assume_init();
                 consumer(UninitializedSliceMemoryGuard::new(&mut memory))
-            }
+            })
         }};
     }
     #[cfg(target_pointer_width = "8")]
@@ -317,4 +317,9 @@ pub fn try_inplace_array<T, R, Consumer>(size: usize, consumer: Consumer) -> Res
         _ => return Err(consumer),
     };
     Ok(result)
+}
+
+#[inline(never)]
+fn indirect<R>(fun: impl FnOnce() -> R) -> R {
+    fun()
 }

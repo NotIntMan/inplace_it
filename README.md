@@ -7,7 +7,7 @@
 Place small arrays on the stack with a low cost!
 
 The only price you should pay for this is the price of choosing
-a type based on the size of the requested array! This is just one `match`!
+a type based on the size of the requested array! This is just one `match` and `call`!
 
 ## What?
 
@@ -58,6 +58,9 @@ or create an [new issue](https://github.com/NotIntMan/inplace_it/issues/new)
 to submit a bug, feature request or just ask a question.
 
 ## Release notes
+
+### 0.3.2
+* Placing of uninit memory moved out from `try_inplace_array` to disallow compiler to optimize it.
 
 ### 0.3.1
 * Initialize with an exact-size iterator.
