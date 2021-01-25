@@ -4,6 +4,7 @@
       <w>deref</w>
       <w>inplace</w>
       <w>inplaceable</w>
+      <w>iterator's</w>
       <w>uninit</w>
       <w>usize</w>
     </words>
