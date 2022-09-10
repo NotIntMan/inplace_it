@@ -20,6 +20,8 @@ use inplace_it::{inplace_or_alloc_array, UninitializedSliceMemoryGuard};
 inplace_or_alloc_array(
     150, // size of needed array to allocate
     |mut uninit_guard: UninitializedSliceMemoryGuard<u16>| { // and this is consumer of uninitialized memory
+
+        // Size of stack-allocated memory can be more or equal to requested, but never less.
         assert_eq!(160, uninit_guard.len());
         
         {
