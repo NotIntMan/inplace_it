@@ -59,18 +59,12 @@ to submit a bug, feature request or just ask a question.
 
 ## Release notes
 
-### 0.3.3
-* Some sugar for easy placing from `Iterator`'s.
-
-### 0.3.2
-* Placing of uninit memory moved out from `try_inplace_array` to disallow compiler to optimize it.
-
-### 0.3.1
-* Initialize with an exact-size iterator.
-
-### 0.3.0
-* API safety. No more unsafe external functions.
-* Drop correctness. No more dropping of uninitialized memory.
-
-### 0.2.2
-* Fixed drop-correctness for safe functions. Now unsafe function do not drop your data but safe function do it correctly.
+| Version | Notes |
+|---------|-------|
+| 0.3.5   | Remove useless FixedArray trait. |
+| 0.3.4   | Fix incorrect use of unstable intrinsic. |
+| 0.3.3   | Some sugar for easy placing from `Iterator`'s. |
+| 0.3.2   | Placing of uninit memory moved out from `try_inplace_array` to disallow compiler to optimize it.|
+| 0.3.1   | Initialize with an exact-size iterator. |
+| 0.3.0   | <ul> <li>API safety. No more unsafe external functions.</li> <li>Drop correctness. No more dropping of uninitialized memory.</li> </ul> |
+| 0.2.2   | Fixed drop-correctness for safe functions. Now unsafe function do not drop your data but safe function do it correctly. |
