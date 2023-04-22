@@ -8,7 +8,7 @@ use crate::try_inplace_array;
 /// It allocates a vector with `size` elements and fills it up with help of `init` closure
 /// and then pass a reference to a slice of the vector into the `consumer` closure.
 /// `consumer`'s result will be returned.
-pub fn alloc_array<T, R, Consumer: FnOnce(UninitializedSliceMemoryGuard<T>) -> R>(size: usize, consumer: Consumer) -> R {
+pub unsafe fn alloc_array<T, R, Consumer: FnOnce(UninitializedSliceMemoryGuard<T>) -> R>(size: usize, consumer: Consumer) -> R {
     unsafe {
         let mut memory_holder = Vec::<MaybeUninit<T>>::with_capacity(size);
         memory_holder.set_len(size);
@@ -58,7 +58,7 @@ pub fn inplace_or_alloc_array<T, R, Consumer>(size: usize, consumer: Consumer) -
 {
     match try_inplace_array(size, consumer) {
         Ok(result) => result,
-        Err(consumer) => alloc_array(size, consumer),
+        Err(consumer) => unsafe { alloc_array(size, consumer) },
     }
 }
 

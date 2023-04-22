@@ -89,12 +89,12 @@ fn inplace_array_should_correctly_drop_values() {
 fn alloc_array_should_correctly_drop_values() {
     for i in (0..4096).step_by(8) {
         DropCounter::clear();
-        alloc_array(i, |_guard: UninitializedSliceMemoryGuard<DropCounterTrigger>| {});
+        unsafe { alloc_array(i, |_guard: UninitializedSliceMemoryGuard<DropCounterTrigger>| {}) };
         assert_eq!(DropCounter::get(), 0);
         DropCounter::clear();
-        alloc_array(i, |guard| {
+        unsafe { alloc_array(i, |guard| {
             guard.init(|_| DropCounterTrigger::new());
-        });
+        }) };
         assert_eq!(DropCounter::get(), i);
     }
 }
