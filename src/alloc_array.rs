@@ -1,6 +1,8 @@
-use crate::guards::UninitializedSliceMemoryGuard;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
+use alloc::vec::Vec;
+
 use crate::try_inplace_array;
+use crate::guards::UninitializedSliceMemoryGuard;
 
 /// `alloc_array` is used when `inplace_or_alloc_array` realize that the size of requested array of `T`
 /// is too large and should be replaced in the heap.
