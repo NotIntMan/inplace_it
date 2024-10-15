@@ -1,9 +1,9 @@
 use core::{
     ops::{Deref, DerefMut},
     mem::{MaybeUninit, transmute},
-    ptr::{drop_in_place, write},
+    ptr::{drop_in_place, write, copy_nonoverlapping},
 };
-use std::ptr::copy_nonoverlapping;
+use alloc::vec::Vec;
 
 /// Guard-struct used for correctly initialize uninitialized memory and `drop` it when guard goes out of scope.
 /// Usually, you *should not* use this struct to handle your memory.
@@ -16,7 +16,7 @@ use std::ptr::copy_nonoverlapping;
 /// ### Example
 /// ```rust
 /// use inplace_it::SliceMemoryGuard;
-/// use std::mem::MaybeUninit;
+/// use core::mem::MaybeUninit;
 ///
 /// // Placing uninitialized memory
 /// let mut memory: [MaybeUninit<usize>; 100] = unsafe { MaybeUninit::uninit().assume_init() };

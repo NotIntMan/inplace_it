@@ -5,6 +5,7 @@ use core::{
         Bound,
     },
 };
+use alloc::vec::Vec;
 use crate::guards::SliceMemoryGuard;
 
 /// Guard-struct used to own uninitialized memory and provide functions for initializing it.
@@ -21,7 +22,7 @@ use crate::guards::SliceMemoryGuard;
 /// ### Example
 /// ```rust
 /// use inplace_it::UninitializedSliceMemoryGuard;
-/// use std::mem::MaybeUninit;
+/// use core::mem::MaybeUninit;
 ///
 /// // Placing uninitialized memory
 /// let mut memory: [MaybeUninit<usize>; 100] = unsafe { MaybeUninit::uninit().assume_init() };
