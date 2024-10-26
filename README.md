@@ -63,6 +63,7 @@ to submit a bug, feature request or just ask a question.
 
 | Version | Notes |
 |---------|-------|
+| 0.3.6   | Add no_std support. |
 | 0.3.5   | Remove useless FixedArray trait. |
 | 0.3.4   | Fix incorrect use of unstable intrinsic. |
 | 0.3.3   | Some sugar for easy placing from `Iterator`'s. |
